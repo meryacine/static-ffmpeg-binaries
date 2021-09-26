@@ -95,10 +95,10 @@ jobs:
             os_name: win
             target_arch: x64
             exe_ext: ".exe"
-          - os: self-hosted-linux-arm64
-            os_name: linux
-            target_arch: arm64
-            exe_ext: ""
+          # - os: self-hosted-linux-arm64
+          #   os_name: linux
+          #   target_arch: arm64
+          #   exe_ext: ""
 
     name: Build ${{ matrix.os_name }} ${{ matrix.target_arch }}
     runs-on: ${{ matrix.os }}
