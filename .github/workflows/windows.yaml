@@ -13,15 +13,13 @@
 # limitations under the License.
 
 # A workflow to build and release fresh binaries.
-name: Release
+name: Release Windows Test
 
 # Runs when a new tag is created.  Creates a release for that tag, then builds
 # ffmpeg and ffprobe on all OS & CPU combinations, then attaches them to the
 # release.
 on:
-  push:
-    tags:
-      - "*"
+  workflow_dispatch:
 
 # NOTE: The versions of the software we build are stored in versions.txt.
 
@@ -34,39 +32,9 @@ defaults:
     shell: bash
 
 jobs:
-  # On a single Linux host, draft a release.  Later, different hosts will build
-  # for each OS/CPU in parallel, and then attach the resulting binaries to this
-  # draft.
-  draft_release:
-    name: Draft release
-    runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.draft_release.outputs.release_id }}
-    steps:
-      - name: Draft release
-        id: draft_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          set -x
-
-          # Check out this repo and install node deps so that we can run the
-          # API client.
-          repo_tag=$(echo "$GITHUB_REF" | sed -e 's@.*/@@')
-          git clone --depth 1 https://github.com/"$GITHUB_REPOSITORY" repo-src -b "$repo_tag"
-          (cd repo-src/.github/workflows/api-client && npm install)
-
-          # Create a draft release associated with the tag that triggered this
-          # workflow.
-          tag="${{ github.ref }}"
-          release_id=$(node ./repo-src/.github/workflows/api-client/main.js draft-release "$tag")
-          echo "::set-output name=release_id::$release_id"
-
   # On several different hosts, build ffmpeg's dependencies, then ffmpeg itself.
   # The deps are all built as static libraries.
   build:
-    needs: draft_release
     strategy:
       # Let other matrix entries complete, so we have all results on failure
       # instead of just the first failure.
@@ -77,85 +45,21 @@ jobs:
         # These are the OS images that we will run.  self-hosted-linux-arm64 is
         # a self-hosted runner, as mid-2021, GitHub still does not offer arm64
         # VMs.
-        os: ["ubuntu-latest", "macos-latest", "windows-latest", "self-hosted-linux-arm64"]
+        os: ["windows-latest"]
 
         # Associate additional properties with each of these OS options.
         # Commenting out an OS above is not enough to remove one.  Its section
         # here must also be commented out.
         include:
-          - os: ubuntu-latest
-            os_name: linux
-            target_arch: x64
-            exe_ext: ""
-          - os: macos-latest
-            os_name: osx
-            target_arch: x64
-            exe_ext: ""
           - os: windows-latest
             os_name: win
             target_arch: x64
             exe_ext: ".exe"
-          - os: self-hosted-linux-arm64
-            os_name: linux
-            target_arch: arm64
-            exe_ext: ""
 
     name: Build ${{ matrix.os_name }} ${{ matrix.target_arch }}
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Install Linux packages
-        if: runner.os == 'Linux'
-        run: |
-          set -e
-          set -x
-
-          # Install missing packages on Linux.
-          # TODO: Some of these are already on GitHub's VMs, but not our
-          # self-hosted runner.  Try to make the self-hosted runner image more
-          # compatible with what GitHub offers by default.
-          sudo apt -y update
-          sudo apt -y upgrade
-          sudo apt -y install \
-            cmake \
-            mercurial \
-            nasm \
-            npm \
-            pkg-config \
-            yasm \
-            libffmpeg-nvenc-dev \
-            libvdpau-dev
-
-          # Use sudo in install commands on Linux.
-          echo "SUDO=sudo" >> "$GITHUB_ENV"
-
-      - name: Install macOS packages
-        if: runner.os == 'macOS'
-        run: |
-          set -e
-          set -x
-
-          # Use homebrew to install missing packages on mac.
-          brew install \
-            md5sha1sum \
-            mercurial \
-            nasm \
-            yasm
-
-          # Unlink pre-installed homebrew packages that conflict with our
-          # static library builds below.  They are still installed, but will no
-          # longer be symlinked into default library paths, and the ffmpeg
-          # build will not pick up pre-installed shared libraries we don't want.
-          # Only our static versions will be used.
-          brew unlink \
-            lame \
-            opus \
-            opusfile \
-            xz
-
-          # Use sudo in install commands on macOS.
-          echo "SUDO=sudo" >> "$GITHUB_ENV"
-
       - name: Add msys2 to the Windows path
         if: runner.os == 'Windows'
         run: |
@@ -430,6 +334,10 @@ jobs:
           make
           # No "make install" for ffmpeg.
 
+      - name: Debug
+        uses: mxschmitt/action-tmate@v3.6
+        if: failure()
+
       - name: Check that executables are static
         run: |
           set -e
@@ -462,105 +370,3 @@ jobs:
           # above), we still need a successful command at the end of the script
           # to make this step of the workflow a success.
           true
-
-      - name: Prepare assets
-        run: |
-          set -e
-          set -x
-
-          mkdir assets
-          SUFFIX="-${{ matrix.os_name }}-${{ matrix.target_arch }}${{ matrix.exe_ext}}"
-          cp ffmpeg/ffmpeg assets/ffmpeg"$SUFFIX"
-          cp ffmpeg/ffprobe assets/ffprobe"$SUFFIX"
-
-          # Show sizes and MD5 sums that can be verified by users later if they
-          # want to check for authenticity.
-          cd assets
-          wc -c *
-          md5sum *
-
-      - name: Attach assets to release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          set -x
-
-          # Attach the build outputs to the draft release.  Each machine will
-          # do this separately and in parallel.  Later, another job will take
-          # over to collect them all and use their MD5 sums to create the
-          # release notes (the "body" of the release).
-          release_id="${{ needs.draft_release.outputs.release_id }}"
-          node ./repo-src/.github/workflows/api-client/main.js \
-            upload-all-assets "$release_id" assets/
-
-      # NOTE: Uncomment this step to debug failures via SSH.
-      #- name: Debug
-      #  uses: mxschmitt/action-tmate@v3.6
-      #  with:
-      #    limit-access-to-actor: true
-      #  if: failure()
-
-  publish_release:
-    name: Publish release
-    needs: [draft_release, build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Publish release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          set -x
-
-          # Check out this repo and install node deps so that we can run the
-          # API client.
-          repo_tag=$(echo "$GITHUB_REF" | sed -e 's@.*/@@')
-          git clone --depth 1 https://github.com/"$GITHUB_REPOSITORY" repo-src -b "$repo_tag"
-          (cd repo-src/.github/workflows/api-client && npm install)
-
-          # Compile the release notes (the "body" of the release) with the date
-          # and the versions of the software we built.
-
-          # The format provided by "date -I" is "YYYY-MM-DD".
-          echo "Date:" >> body.txt
-          echo " - $(date -I)" >> body.txt
-          echo "" >> body.txt
-
-          echo "$GITHUB_REPOSITORY version:" >> body.txt
-          echo " - $repo_tag" >> body.txt
-          echo "" >> body.txt
-
-          echo "Software versions:" >> body.txt
-          cat repo-src/.github/workflows/versions.txt | \
-            sed -e 's/^/ - /' >> body.txt
-          echo "" >> body.txt
-
-          # Update the release notes with this preliminary version.  This is
-          # what gets emailed out when we publish the release below.
-          release_id="${{ needs.draft_release.outputs.release_id }}"
-          node ./repo-src/.github/workflows/api-client/main.js \
-            update-release-body "$release_id" "$(cat body.txt)"
-
-          # Now we have to take the release out of draft mode.  Until we do, we
-          # can't get download URLs for the assets.
-          node ./repo-src/.github/workflows/api-client/main.js \
-            publish-release "$release_id"
-
-          # The downloads are sometimes a bit flaky (responding with 404) if we
-          # don't put some delay between publication and download.  This number
-          # is arbitrary, but experimentally, it seems to solve the issue.
-          sleep 30
-
-          # Next, download the assets.
-          node ./repo-src/.github/workflows/api-client/main.js \
-            download-all-assets "$release_id" assets/
-
-          # Now add the MD5 sums to the release notes.
-          echo "MD5 sums:" >> body.txt
-          (cd assets; md5sum * | sed -e 's/^/ - /') >> body.txt
-
-          # Now update the release notes one last time, with the MD5 sums
-          # appended.
-          node ./repo-src/.github/workflows/api-client/main.js \
-            update-release-body "$release_id" "$(cat body.txt)"
