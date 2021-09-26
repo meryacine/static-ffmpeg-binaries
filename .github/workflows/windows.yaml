@@ -120,7 +120,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make
+          make -j 8
           $SUDO make install
 
       - name: Install aom
@@ -147,7 +147,7 @@ jobs:
             -DCONFIG_RUNTIME_CPU_DETECT=1 \
             -DCONFIG_SHARED=0
 
-          make
+          make -j 8
           $SUDO make install
 
           # This adjustment to the aom linker flags is needed, at least on
@@ -167,7 +167,7 @@ jobs:
             --enable-static
 
           # Only build and install the static library.
-          make libx264.a
+          make libx264.a -j 8
           $SUDO make install-lib-static
 
       - name: Install x265
@@ -186,7 +186,7 @@ jobs:
             -DENABLE_SHARED=OFF \
             -DENABLE_CLI=OFF
 
-          make
+          make -j 8
           $SUDO make install
 
           # This adjustment to the x265 linker flags is needed, at least on
@@ -215,7 +215,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make
+          make -j 8
           $SUDO make install
 
       - name: Install opus
@@ -244,7 +244,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make
+          make -j 8
           $SUDO make install
 
           # The pkgconfig linker flags for static opus don't work when ffmpeg
@@ -268,7 +268,7 @@ jobs:
             export WINDOWS=1
           fi
 
-          make
+          make -j 8
           $SUDO make install
 
       - name: Build ffmpeg and ffprobe
@@ -331,7 +331,7 @@ jobs:
             --enable-static \
             $PLATFORM_CONFIGURE_FLAGS
 
-          make
+          make -j 8
           # No "make install" for ffmpeg.
 
       - name: Debug
@@ -339,6 +339,7 @@ jobs:
         if: failure()
 
       - name: Check that executables are static
+        continue-on-error: true
         run: |
           set -e
           set -x
@@ -370,3 +371,10 @@ jobs:
           # above), we still need a successful command at the end of the script
           # to make this step of the workflow a success.
           true
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v2
+        with:
+          path: |
+            ./ffmpeg/ffmpeg.exe
+            ./ffmpeg/ffprobe.exe
