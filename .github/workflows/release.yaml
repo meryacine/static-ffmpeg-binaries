@@ -361,6 +361,10 @@ jobs:
           make
           $SUDO make install
 
+      - name: Debug on failure
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ failure() }}
+
       - name: Build ffmpeg and ffprobe
         run: |
           set -e
