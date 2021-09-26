@@ -213,7 +213,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make
+          make -j 8
           $SUDO make install
 
       - name: Install aom
@@ -240,7 +240,7 @@ jobs:
             -DCONFIG_RUNTIME_CPU_DETECT=1 \
             -DCONFIG_SHARED=0
 
-          make
+          make -j 8
           $SUDO make install
 
           # This adjustment to the aom linker flags is needed, at least on
@@ -260,7 +260,7 @@ jobs:
             --enable-static
 
           # Only build and install the static library.
-          make libx264.a
+          make libx264.a -j 8
           $SUDO make install-lib-static
 
       - name: Install x265
@@ -279,7 +279,7 @@ jobs:
             -DENABLE_SHARED=OFF \
             -DENABLE_CLI=OFF
 
-          make
+          make -j 8
           $SUDO make install
 
           # This adjustment to the x265 linker flags is needed, at least on
@@ -308,7 +308,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make
+          make -j 8
           $SUDO make install
 
       - name: Install opus
@@ -337,7 +337,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make
+          make -j 8
           $SUDO make install
 
           # The pkgconfig linker flags for static opus don't work when ffmpeg
@@ -349,14 +349,13 @@ jobs:
           set -e
           set -x
 
-          tag=(repo-src/.github/workflows/get-version.sh mbedtls)
+          tag=$(repo-src/.github/workflows/get-version.sh mbedtls)
 
           # TODO: We are now using v2.27.0 for compatibility issues with ffmpeg.
-          # Update to v3.0.0 once 
           git clone --depth 1 https://github.com/ARMmbed/mbedtls.git -b "$tag"
 
           cd mbedtls
-          make
+          make -j 8
           $SUDO make install
 
       - name: Build ffmpeg and ffprobe
@@ -419,7 +418,7 @@ jobs:
             --enable-static \
             $PLATFORM_CONFIGURE_FLAGS
 
-          make
+          make -j 8
           # No "make install" for ffmpeg.
 
       - name: Check that executables are static
