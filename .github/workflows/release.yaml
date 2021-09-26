@@ -344,6 +344,21 @@ jobs:
           # checks for opus in configure.  Linking libm after libopus fixes it.
           $SUDO sed -e 's/-lopus/-lopus -lm/' -i.bk /usr/local/lib/pkgconfig/opus.pc
 
+      - name: Install mbedtls
+        run: |
+          set -e
+          set -x
+
+          tag=(repo-src/.github/workflows/get-version.sh mbedtls)
+
+          # TODO: We are now using v2.27.0 for compatibility issues with ffmpeg.
+          # Update to v3.0.0 once 
+          git clone --depth 1 https://github.com/ARMmbed/mbedtls.git -b "$tag"
+
+          cd mbedtls
+          make
+          $SUDO make install
+
       - name: Build ffmpeg and ffprobe
         run: |
           set -e
@@ -397,6 +412,7 @@ jobs:
             --enable-libx265 \
             --enable-libmp3lame \
             --enable-libopus \
+            --enable-mbedtls \
             --enable-runtime-cpudetect \
             --enable-gpl \
             --enable-version3 \
