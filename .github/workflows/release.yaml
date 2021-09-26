@@ -432,6 +432,7 @@ jobs:
 
       - name: Debug
         uses: mxschmitt/action-tmate@v3.6
+        if: failure()
 
       - name: Check that executables are static
         run: |
