@@ -347,29 +347,29 @@ jobs:
           # checks for opus in configure.  Linking libm after libopus fixes it.
           $SUDO sed -e 's/-lopus/-lopus -lm/' -i.bk /usr/local/lib/pkgconfig/opus.pc
 
-      - name: Install mbedtls
-        run: |
-          set -e
-          set -x
+      # - name: Install mbedtls
+      #   run: |
+      #     set -e
+      #     set -x
 
-          tag=$(repo-src/.github/workflows/get-version.sh mbedtls)
+      #     tag=$(repo-src/.github/workflows/get-version.sh mbedtls)
 
-          # TODO: We are now using v2.27.0 for compatibility issues with ffmpeg.
-          git clone --depth 1 https://github.com/ARMmbed/mbedtls.git -b "$tag"
+      #     # TODO: We are now using v2.27.0 for compatibility issues with ffmpeg.
+      #     git clone --depth 1 https://github.com/ARMmbed/mbedtls.git -b "$tag"
 
-          cd mbedtls
+      #     cd mbedtls
 
-          # This flag is needed when building on Windows.
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            export WINDOWS=1
-          fi
+      #     # This flag is needed when building on Windows.
+      #     if [[ "${{ runner.os }}" == "Windows" ]]; then
+      #       export WINDOWS=1
+      #     fi
 
-          make
-          $SUDO make install
+      #     make
+      #     $SUDO make install
 
-      - name: Debug on failure
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ failure() }}
+      # - name: Debug on failure
+      #   uses: mxschmitt/action-tmate@v3
+      #   if: ${{ failure() }}
 
       - name: Build ffmpeg and ffprobe
         run: |
@@ -424,7 +424,6 @@ jobs:
             --enable-libx265 \
             --enable-libmp3lame \
             --enable-libopus \
-            --enable-mbedtls \
             --enable-runtime-cpudetect \
             --enable-gpl \
             --enable-version3 \
