@@ -68,6 +68,9 @@ jobs:
   build:
     needs: draft_release
     strategy:
+      # Let other matrix entries complete, so we have all results on failure
+      # instead of just the first failure.
+      fail-fast: false
       matrix:
         # TODO: Add Mac arm64?
         # TODO: Add Windows arm64?
@@ -213,7 +216,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make -j 8
+          make
           $SUDO make install
 
       - name: Install aom
@@ -240,7 +243,7 @@ jobs:
             -DCONFIG_RUNTIME_CPU_DETECT=1 \
             -DCONFIG_SHARED=0
 
-          make -j 8
+          make
           $SUDO make install
 
           # This adjustment to the aom linker flags is needed, at least on
@@ -260,7 +263,7 @@ jobs:
             --enable-static
 
           # Only build and install the static library.
-          make libx264.a -j 8
+          make libx264.a
           $SUDO make install-lib-static
 
       - name: Install x265
@@ -279,7 +282,7 @@ jobs:
             -DENABLE_SHARED=OFF \
             -DENABLE_CLI=OFF
 
-          make -j 8
+          make
           $SUDO make install
 
           # This adjustment to the x265 linker flags is needed, at least on
@@ -308,7 +311,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make -j 8
+          make
           $SUDO make install
 
       - name: Install opus
@@ -337,7 +340,7 @@ jobs:
             --enable-static \
             --disable-shared
 
-          make -j 8
+          make
           $SUDO make install
 
           # The pkgconfig linker flags for static opus don't work when ffmpeg
@@ -355,7 +358,7 @@ jobs:
           git clone --depth 1 https://github.com/ARMmbed/mbedtls.git -b "$tag"
 
           cd mbedtls
-          make -j 8
+          make
           $SUDO make install
 
       - name: Build ffmpeg and ffprobe
@@ -418,7 +421,7 @@ jobs:
             --enable-static \
             $PLATFORM_CONFIGURE_FLAGS
 
-          make -j 8
+          make
           # No "make install" for ffmpeg.
 
       - name: Check that executables are static
