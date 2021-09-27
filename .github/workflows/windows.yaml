@@ -264,14 +264,15 @@ jobs:
           cd mbedtls
 
           # This flag is needed when building on Windows.
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            export WINDOWS=1
-          fi
+          # if [[ "${{ runner.os }}" == "Windows" ]]; then
+          #   export WINDOWS=1
+          # fi
 
-          make -j 8
-          $SUDO make install
+          # make -j 8
+          # $SUDO make install
 
       - name: Build ffmpeg and ffprobe
+        continue-on-error: true
         run: |
           set -e
           set -x
@@ -335,8 +336,8 @@ jobs:
           # No "make install" for ffmpeg.
 
       - name: Debug
+        continue-on-error: true
         uses: mxschmitt/action-tmate@v3.6
-        if: failure()
 
       - name: Check that executables are static
         continue-on-error: true
