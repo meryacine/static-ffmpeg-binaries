@@ -89,167 +89,156 @@ jobs:
           # things.
           echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig" >> "$GITHUB_ENV"
 
-      - name: Check out repo source
-        run: |
-          set -e
-          set -x
+      # - name: Install libvpx
+      #   run: |
+      #     set -e
+      #     set -x
 
-          # Check out this repo and install node deps so that we can run the
-          # API client.
-          repo_tag=$(echo "$GITHUB_REF" | sed -e 's@.*/@@')
-          git clone --depth 1 https://github.com/"$GITHUB_REPOSITORY" repo-src -b "$repo_tag"
-          (cd repo-src/.github/workflows/api-client && npm install)
+      #     tag=$(repo-src/.github/workflows/get-version.sh libvpx)
+      #     git clone --depth 1 https://chromium.googlesource.com/webm/libvpx -b "$tag"
+      #     cd libvpx
 
-      - name: Install libvpx
-        run: |
-          set -e
-          set -x
+      #     # NOTE: disabling unit tests and examples significantly reduces build
+      #     # time (by 80% as tested on a Jetson Nano)
+      #     ./configure \
+      #       --enable-vp8 \
+      #       --enable-vp9 \
+      #       --enable-runtime-cpu-detect \
+      #       --disable-unit-tests \
+      #       --disable-examples \
+      #       --enable-static \
+      #       --disable-shared
 
-          tag=$(repo-src/.github/workflows/get-version.sh libvpx)
-          git clone --depth 1 https://chromium.googlesource.com/webm/libvpx -b "$tag"
-          cd libvpx
+      #     make -j 8
+      #     $SUDO make install
 
-          # NOTE: disabling unit tests and examples significantly reduces build
-          # time (by 80% as tested on a Jetson Nano)
-          ./configure \
-            --enable-vp8 \
-            --enable-vp9 \
-            --enable-runtime-cpu-detect \
-            --disable-unit-tests \
-            --disable-examples \
-            --enable-static \
-            --disable-shared
+      # - name: Install aom
+      #   run: |
+      #     set -e
+      #     set -x
 
-          make -j 8
-          $SUDO make install
+      #     tag=$(repo-src/.github/workflows/get-version.sh aom)
+      #     git clone --depth 1 https://aomedia.googlesource.com/aom/ -b "$tag"
 
-      - name: Install aom
-        run: |
-          set -e
-          set -x
+      #     # AOM insists on being built out-of-tree.
+      #     mkdir aom_build
+      #     cd aom_build
 
-          tag=$(repo-src/.github/workflows/get-version.sh aom)
-          git clone --depth 1 https://aomedia.googlesource.com/aom/ -b "$tag"
+      #     # NOTE: without CMAKE_INSTALL_PREFIX on Windows, files are installed
+      #     # to c:\Program Files.
+      #     cmake ../aom \
+      #       -DCMAKE_INSTALL_PREFIX=/usr/local \
+      #       -DENABLE_DOCS=OFF \
+      #       -DENABLE_EXAMPLES=OFF \
+      #       -DENABLE_TESTS=OFF \
+      #       -DENABLE_TESTDATA=OFF \
+      #       -DENABLE_TOOLS=OFF \
+      #       -DCONFIG_RUNTIME_CPU_DETECT=1 \
+      #       -DCONFIG_SHARED=0
 
-          # AOM insists on being built out-of-tree.
-          mkdir aom_build
-          cd aom_build
+      #     make -j 8
+      #     $SUDO make install
 
-          # NOTE: without CMAKE_INSTALL_PREFIX on Windows, files are installed
-          # to c:\Program Files.
-          cmake ../aom \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DENABLE_DOCS=OFF \
-            -DENABLE_EXAMPLES=OFF \
-            -DENABLE_TESTS=OFF \
-            -DENABLE_TESTDATA=OFF \
-            -DENABLE_TOOLS=OFF \
-            -DCONFIG_RUNTIME_CPU_DETECT=1 \
-            -DCONFIG_SHARED=0
+      #     # This adjustment to the aom linker flags is needed, at least on
+      #     # arm, to successfully link against it statically.  (-lm missing)
+      #     $SUDO sed -e 's/-laom/-laom -lm/' -i.bk /usr/local/lib/pkgconfig/aom.pc
 
-          make -j 8
-          $SUDO make install
+      # - name: Install x264
+      #   run: |
+      #     set -e
+      #     set -x
 
-          # This adjustment to the aom linker flags is needed, at least on
-          # arm, to successfully link against it statically.  (-lm missing)
-          $SUDO sed -e 's/-laom/-laom -lm/' -i.bk /usr/local/lib/pkgconfig/aom.pc
+      #     tag=$(repo-src/.github/workflows/get-version.sh x264)
+      #     git clone --depth 1 https://code.videolan.org/videolan/x264.git -b "$tag"
+      #     cd x264
 
-      - name: Install x264
-        run: |
-          set -e
-          set -x
+      #     ./configure \
+      #       --enable-static
 
-          tag=$(repo-src/.github/workflows/get-version.sh x264)
-          git clone --depth 1 https://code.videolan.org/videolan/x264.git -b "$tag"
-          cd x264
+      #     # Only build and install the static library.
+      #     make libx264.a -j 8
+      #     $SUDO make install-lib-static
 
-          ./configure \
-            --enable-static
+      # - name: Install x265
+      #   run: |
+      #     set -e
+      #     set -x
 
-          # Only build and install the static library.
-          make libx264.a -j 8
-          $SUDO make install-lib-static
+      #     tag=$(repo-src/.github/workflows/get-version.sh x265)
+      #     hg clone http://hg.videolan.org/x265 -r "$tag"
+      #     cd x265/build
 
-      - name: Install x265
-        run: |
-          set -e
-          set -x
+      #     # NOTE: without CMAKE_INSTALL_PREFIX on Windows, files are installed
+      #     # to c:\Program Files.
+      #     cmake ../source \
+      #       -DCMAKE_INSTALL_PREFIX=/usr/local \
+      #       -DENABLE_SHARED=OFF \
+      #       -DENABLE_CLI=OFF
 
-          tag=$(repo-src/.github/workflows/get-version.sh x265)
-          hg clone http://hg.videolan.org/x265 -r "$tag"
-          cd x265/build
+      #     make -j 8
+      #     $SUDO make install
 
-          # NOTE: without CMAKE_INSTALL_PREFIX on Windows, files are installed
-          # to c:\Program Files.
-          cmake ../source \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DENABLE_SHARED=OFF \
-            -DENABLE_CLI=OFF
+      #     # This adjustment to the x265 linker flags is needed, at least on
+      #     # arm, to successfully link against it statically.  (-lgcc_s not
+      #     # found (or needed), and -lpthread missing)
+      #     $SUDO sed -e 's/-lgcc_s -lgcc -lgcc_s -lgcc/-lpthread -lgcc/' -i.bk /usr/local/lib/pkgconfig/x265.pc
 
-          make -j 8
-          $SUDO make install
+      # - name: Install lame
+      #   run: |
+      #     set -e
+      #     set -x
 
-          # This adjustment to the x265 linker flags is needed, at least on
-          # arm, to successfully link against it statically.  (-lgcc_s not
-          # found (or needed), and -lpthread missing)
-          $SUDO sed -e 's/-lgcc_s -lgcc -lgcc_s -lgcc/-lpthread -lgcc/' -i.bk /usr/local/lib/pkgconfig/x265.pc
+      #     version=$(repo-src/.github/workflows/get-version.sh lame)
+      #     curl -L -o lame-"$version".tar.gz https://sourceforge.net/projects/lame/files/lame/"$version"/lame-"$version".tar.gz/download
+      #     tar xzf lame-"$version".tar.gz
+      #     cd lame-"$version"
 
-      - name: Install lame
-        run: |
-          set -e
-          set -x
+      #     # Only build and install the library (--disable-front-end).  The
+      #     # frontend doesn't build on Windows, and we don't need it anyway.
+      #     # On Windows, somehow prefix defaults to / instead of /usr/local, but
+      #     # only on some projects.  No idea why that is the default on Windows,
+      #     # but --prefix=/usr/local fixes it.
+      #     ./configure \
+      #       --prefix=/usr/local \
+      #       --disable-frontend \
+      #       --enable-static \
+      #       --disable-shared
 
-          version=$(repo-src/.github/workflows/get-version.sh lame)
-          curl -L -o lame-"$version".tar.gz https://sourceforge.net/projects/lame/files/lame/"$version"/lame-"$version".tar.gz/download
-          tar xzf lame-"$version".tar.gz
-          cd lame-"$version"
+      #     make -j 8
+      #     $SUDO make install
 
-          # Only build and install the library (--disable-front-end).  The
-          # frontend doesn't build on Windows, and we don't need it anyway.
-          # On Windows, somehow prefix defaults to / instead of /usr/local, but
-          # only on some projects.  No idea why that is the default on Windows,
-          # but --prefix=/usr/local fixes it.
-          ./configure \
-            --prefix=/usr/local \
-            --disable-frontend \
-            --enable-static \
-            --disable-shared
+      # - name: Install opus
+      #   run: |
+      #     set -e
+      #     set -x
 
-          make -j 8
-          $SUDO make install
+      #     version=$(repo-src/.github/workflows/get-version.sh opus)
+      #     curl -LO https://archive.mozilla.org/pub/opus/opus-"$version".tar.gz
+      #     tar xzf opus-"$version".tar.gz
+      #     cd opus-"$version"
 
-      - name: Install opus
-        run: |
-          set -e
-          set -x
+      #     # On Windows, we can't link later if we build with -D_FORTIFY_SOURCE
+      #     # now.  But there is no configure option for this, so we edit the
+      #     # configure script instead.
+      #     sed -e 's/-D_FORTIFY_SOURCE=2//' -i.bk configure
 
-          version=$(repo-src/.github/workflows/get-version.sh opus)
-          curl -LO https://archive.mozilla.org/pub/opus/opus-"$version".tar.gz
-          tar xzf opus-"$version".tar.gz
-          cd opus-"$version"
+      #     # On Windows, somehow prefix defaults to / instead of /usr/local, but
+      #     # only on some projects.  No idea why that is the default on Windows,
+      #     # but --prefix=/usr/local fixes it.
+      #     # On Windows, we also need to disable-stack-protector.
+      #     ./configure \
+      #       --prefix=/usr/local \
+      #       --disable-extra-programs \
+      #       --disable-stack-protector \
+      #       --enable-static \
+      #       --disable-shared
 
-          # On Windows, we can't link later if we build with -D_FORTIFY_SOURCE
-          # now.  But there is no configure option for this, so we edit the
-          # configure script instead.
-          sed -e 's/-D_FORTIFY_SOURCE=2//' -i.bk configure
+      #     make -j 8
+      #     $SUDO make install
 
-          # On Windows, somehow prefix defaults to / instead of /usr/local, but
-          # only on some projects.  No idea why that is the default on Windows,
-          # but --prefix=/usr/local fixes it.
-          # On Windows, we also need to disable-stack-protector.
-          ./configure \
-            --prefix=/usr/local \
-            --disable-extra-programs \
-            --disable-stack-protector \
-            --enable-static \
-            --disable-shared
-
-          make -j 8
-          $SUDO make install
-
-          # The pkgconfig linker flags for static opus don't work when ffmpeg
-          # checks for opus in configure.  Linking libm after libopus fixes it.
-          $SUDO sed -e 's/-lopus/-lopus -lm/' -i.bk /usr/local/lib/pkgconfig/opus.pc
+      #     # The pkgconfig linker flags for static opus don't work when ffmpeg
+      #     # checks for opus in configure.  Linking libm after libopus fixes it.
+      #     $SUDO sed -e 's/-lopus/-lopus -lm/' -i.bk /usr/local/lib/pkgconfig/opus.pc
 
       - name: Install mbedtls
         run: |
@@ -315,15 +304,15 @@ jobs:
             PLATFORM_CONFIGURE_FLAGS="--target-os=mingw64"
           fi
 
+            # --enable-libvpx \
+            # --enable-libaom \
+            # --enable-libx264 \
+            # --enable-libx265 \
+            # --enable-libmp3lame \
+            # --enable-libopus \
           ./configure \
             --pkg-config-flags="--static" \
             --disable-ffplay \
-            --enable-libvpx \
-            --enable-libaom \
-            --enable-libx264 \
-            --enable-libx265 \
-            --enable-libmp3lame \
-            --enable-libopus \
             --enable-mbedtls \
             --enable-runtime-cpudetect \
             --enable-gpl \
